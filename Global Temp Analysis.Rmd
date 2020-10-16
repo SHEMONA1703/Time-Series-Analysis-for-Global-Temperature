@@ -1,0 +1,113 @@
+
+```{r}
+# Installing all necessary libraries
+library(tseries)
+library(forecast)
+library(tidyverse)
+library(tidymodels)
+library(modeltime)
+library(timetk)
+library(lubridate)
+library(lmtest)
+library(FitAR)
+library(TSstudio)
+```
+
+
+```{r}
+#Plotting the Time Series Data
+global_temp <- read.csv("C:/Users/Lenovo/Dropbox/My PC (LAPTOP-T1F1GG8F)/Desktop/global_temp.csv")
+data<-ts(global_temp,start=c(1900,1),end=c(2013,1),frequency=12)
+ts.plot(data,main="global_temp")
+```
+
+```{r}
+#Checking Auto-Correlation Function
+#acf at diff lags
+acf(data)
+```
+
+```{r}
+#Plotting Partial auto correlation function
+pacf(data)
+```
+
+Interpretation: So, from the above PACF plot we can say that pacf "cuts off" after the 2nd lag, while the ACF "tails off" to zero. So, it probably has something like an AR(2).
+
+```{r}
+adf.test(data)
+```
+Interpretation: So, when we observe the p- value we find that p-value < 0.05 i.e 0.01 < 0.05. Hence, we reject the null hypothesis.So, we can say that the data is Stationary. 
+
+```{r}
+#Fitting the best Model
+fit_data=auto.arima(data,trace = TRUE)
+```
+Interpretation: 
+1. As, auto.arima gives the best model that can be fitted to a given data in the form ARIMA(p,d,q)
+2. By seeing the output we can say that d part is 0 because the data is already stationary otherwise d part would have been 1.
+3. Also, There is neither trend nor seasonality.
+4. So, the obtained model is ARIMA(0,0,1)
+
+
+```{r}
+# Residual Analysis
+#Checking whether the residuals of the best fitted model satisfying the assumptions
+#checking for all 3 assumptions
+res=residuals(fit_data)
+#Plotting the Residuals
+plot(res,main="residuals of the fitted model")
+```
+```{r}
+#Assumption_1:residuals are uncorrelated  Random Variable
+#Finding acf of the residual series,this gives the dependency
+acf(res)
+```
+Interpretation: Clearly all the values of acf are lying within the blue dotted line.i.e they are negligible.i.e there is independency.
+
+```{r}
+#Assumption_2 :zero mean and const variance
+#the avg of the obs are close to zero from the plot
+#Assumption_3:normality of the plot
+shapiro.test(res)
+```
+Interpretation: 
+1. When we observe the p value we can say that that p-value 0.0001 <0.05.So, we reject the the null hypothesis.
+Hence, the distribution of the given data is different from normal distribution significantly.
+
+```{r}
+#OUT-SAMPLE FORECAST
+#Making predictions
+#make the prediction for next 5 more observations based on ARIMA(0,0,1)
+newfit=forecast(fit_data,h=5)
+plot(newfit)
+```
+Interpretation: 
+1. h=5 means 5 step ahead we are predicting so the blue colour shows the forecast for 5 step ahead. 
+
+```{r}
+#IN SAMPLE FORECAST
+split_data <- ts_split(ts.obj = data, sample.out = 2)
+
+training <- split_data$train
+testing <- split_data$test
+
+print("Length of original data:")
+length(data)
+print("Length of Training data:")
+length(training)
+print("Length of Testing data:")
+length(testing)
+```
+
+```{r}
+data.train <- Arima(training, order=c(0,0,1),
+                    seasonal=c(2,1,0), lambda=0)
+data.train %>%
+  forecast(h=2) %>%
+  autoplot() + autolayer(testing)
+```
+Interpretation:
+As we can see that the testing(red line) is overlapping the predicted forecast(blue line).So, we can say that it has forecasted the last 2 values accurately.
+
+
